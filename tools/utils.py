@@ -1,6 +1,7 @@
 import time
 
 import logzero
+from logzero import logger
 import torch
 import custom_dataset
 from torch.utils.data import DataLoader
@@ -9,13 +10,13 @@ from torchvision import datasets, transforms
 from trains import params
 
 
-def get_dataset(dataset, train=True, noise=True):
+def get_dataset(dataset, train=True, noise=False):
     """
      获取dataset
 
-    :param noise: 是否添加噪声
-    :param dataset: 数据集名称
-    :param train: 是否是训练集
+    :param noise: 是否添加噪声。如果添加噪声，则每个位置的位置标签数量为3。
+    :param dataset: 数据集名称。
+    :param train: 是否为训练集。
     :return: dataset
     """
     if dataset == 'MNIST':
@@ -67,20 +68,36 @@ def optimizer_scheduler(optimizer, p):
     return optimizer
 
 
-def gen_labels(label: int, types=10, num=3) -> list:
+def gen_labels(label: int, noise_list: []) -> list:
     """
     根据标签生成n个添加噪声的one-hot标签
 
-    :param num: 生成的标签数量
+    :param noise_list: 噪声向量列表，如果不为空，则用给定的噪声向量生成one-hot标签
     :param label: 原始标签，int类型
+    :param types: 分类数量
+    :return: 添加噪声后的标签列表,该列表中有3个one-hot标签向量（列表）
+    """
+    temp = []
+    for k in range(len(noise_list)):
+        noise = noise_list[k]
+        noise[label] = noise[label] + 1
+        noise = torch.Tensor(noise)
+        noise = noise / noise.sum()
+        temp.append(noise.tolist())
+    return temp
+
+
+def gen_noise(types=10, num=3) -> list:
+    """
+    生成n个添加噪声的one-hot标签
+
+    :param num: 生成的标签数量
     :param types: 分类数量
     :return: 添加噪声后的标签列表,该列表中有3个one-hot标签向量（列表）
     """
     temp = []
     for k in range(num):
         noise = torch.relu(torch.randn(types) * params.std)
-        noise[label] = noise[label] + 1
-        noise = noise / noise.sum()
         temp.append(noise.tolist())
     return temp
 
@@ -96,3 +113,14 @@ def log_save(save_dir, start_time=time.time(), limit=0):
     if time.time() - start_time > limit:
         logzero.logfile(save_dir + "/output_" + str(time.time()) + ".log")
         start_time = time.time()
+
+
+# 测试用代码
+if __name__ == '__main__':
+    t = 3
+    test_noise = gen_noise(t, 20)
+    for i in test_noise:
+        logger.debug(i)
+    result = gen_labels(1, noise_list=test_noise)
+    for i in result:
+        logger.debug(i)

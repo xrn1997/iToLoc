@@ -4,6 +4,7 @@ import time
 import numpy as np
 import torch
 import pandas as pd
+from logzero import logger
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
@@ -11,7 +12,7 @@ from tools import utils
 
 
 class UJIndoorLocDataSet(Dataset):
-    def __init__(self, dataset_path, train=True, noise=True):
+    def __init__(self, dataset_path, train=True, noise=False):
         if train:
             train_path = "trainingData.csv"
         else:
@@ -40,12 +41,19 @@ class UJIndoorLocDataSet(Dataset):
                 co_idx = co_idx + 1
             else:
                 self._co_labels.append(list(co_dic.keys())[list(co_dic.values()).index(temp)])
-        if noise:
-            for n in range(len(self._co_labels)):
-                self._co_labels[n] = utils.gen_labels(self._co_labels[n], types=len(co_dic))
         np.save(dataset_path + "/co_dic.npy", co_dic)
-        np.save(dataset_path + "/co_labels.npy", self._co_labels)
-
+        if noise:
+            if os.path.exists(dataset_path + "/co_noise" + str(train) + ".npy"):
+                noise_list = np.load(dataset_path + "/co_noise" + str(train) + ".npy", allow_pickle=True)
+            else:
+                noise_list = []
+                for i in range(len(self._co_labels)):
+                    noise_list.append(utils.gen_noise(types=len(co_dic)))
+                np.save(dataset_path + "/co_noise" + str(train) + ".npy", noise_list)
+            temp = []
+            for idx, cl in enumerate(self._co_labels):
+                temp.append(torch.Tensor(utils.gen_labels(label=cl, noise_list=noise_list[idx])))
+            self._co_labels = temp
         self.co_size = len(co_dic)  # 位置数量
 
         # 生成域标签
@@ -74,26 +82,34 @@ class UJIndoorLocDataSet(Dataset):
             mx[:, i] = (mx[:, i] - rss_item[i]) / (rss_item[i] - 1)
         result = mx.A.reshape(1, self.ap_len, self.ap_len)  # 通道数为 1
         result = torch.from_numpy(result)
-
-        return result, self._co_data[index], torch.Tensor(self._co_labels[index]), self._one_hot_label.values[index]
+        return result, self._co_data[index], self._co_labels[index], self._one_hot_label.values[index]
 
 
 #  测试用代码
 if __name__ == '__main__':
     uj_indoor_loc_path = "./UJIndoorLoc/"
 
-    np.set_printoptions(threshold=np.inf)  # threshold 指定超过多少使用省略号，np.inf代表无限大
-    dataset = UJIndoorLocDataSet(uj_indoor_loc_path, train=True)
-    dataloader = DataLoader(dataset=dataset,
+    dataset1 = UJIndoorLocDataSet(uj_indoor_loc_path, train=True)
+    dataloader = DataLoader(dataset=dataset1,
                             batch_size=2,
+                            shuffle=False,
                             num_workers=3,
                             pin_memory=True)
-    print(len(dataset))
-    print("ap_len", dataset.ap_len)
-    print("co_size", dataset.co_size)
-    print("domain_size", dataset.domain_size)
+    logger.debug(len(dataset1))
+    logger.debug("ap_len: " + str(dataset1.ap_len))
+    logger.debug("co_size: " + str(dataset1.co_size))
+    logger.debug("domain_size: " + str(dataset1.domain_size))
     for data in dataloader:
-        data[1] *= torch.tensor([1, 1, 3])  # 假定每层楼高3米
-        print(data[2])
+        logger.debug(data[2])
+        # data[1] *= torch.tensor([1, 1, 3])  # 假定每层楼高3米
         # coordinate = data[1] - data[1][data[2]]
+        break
+    dataset2 = UJIndoorLocDataSet(uj_indoor_loc_path, train=True, noise=True)
+    dataloader = DataLoader(dataset=dataset2,
+                            batch_size=2,
+                            shuffle=False,
+                            num_workers=3,
+                            pin_memory=True)
+    for data in dataloader:
+        logger.debug(data[2])
         break

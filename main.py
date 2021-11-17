@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 def main():
     # 训练集
-    train_dataset = ut.get_dataset(params.dataset)
+    train_dataset = ut.get_dataset(params.dataset, noise=True)
 
     # 拆分训练集，这里unlabeled_dataset自身虽然带标签，但是我们不用，假装没有。
     length = len(train_dataset)
@@ -52,7 +52,7 @@ def main():
         label_predictor[2].load_state_dict(torch.load(save_path + "/lp3.pth"))
 
     # 初始化Trainer
-    trainer = Trainer(feature_extractor, label_predictor,domain_classifier, optimizer)
+    trainer = Trainer(feature_extractor, label_predictor, domain_classifier, optimizer)
 
     # 日志存储
     utils.log_save(params.save_dir)
