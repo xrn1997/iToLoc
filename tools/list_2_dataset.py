@@ -1,7 +1,8 @@
 import torch
+from logzero import logger
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from logzero import logger
+
 import custom_dataset
 from trains import params
 

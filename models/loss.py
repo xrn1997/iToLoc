@@ -7,11 +7,15 @@ class OneHotNLLLoss(nn.Module):
     one-hot的交叉熵损失函数
     """
 
-    def __init__(self, reduction='mean'):
+    def __init__(self, reduction='mean', smx=False):
         super(OneHotNLLLoss, self).__init__()
         self.reduction = reduction
+        self.smx = smx
+        self.soft_max = nn.LogSoftmax(dim=1)
 
     def forward(self, x, y):
+        if self.smx:
+            x = self.soft_max(x)
         # y是标签，x是预测值
         if self.reduction == 'sum':
             n = 1

@@ -1,12 +1,12 @@
 import time
 
 import logzero
-from logzero import logger
 import torch
-import custom_dataset
+from logzero import logger
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
+import custom_dataset
 from trains import params
 
 
@@ -68,7 +68,7 @@ def optimizer_scheduler(optimizer, p):
     return optimizer
 
 
-def gen_labels(label: int, noise_list: []) -> list:
+def gen_labels(label: int, noise_list: list) -> list:
     """
     根据标签生成n个添加噪声的one-hot标签
 

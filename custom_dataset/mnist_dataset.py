@@ -3,10 +3,10 @@ import time
 
 import numpy as np
 import torch
-import torchvision.datasets
+from logzero import logger
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
-from logzero import logger
+
 from tools import utils
 from trains import params
 

@@ -2,13 +2,14 @@ import math
 
 import numpy as np
 import torch.cuda
+from logzero import logger
 from torch import nn
 from torch.autograd import Variable
-from logzero import logger
-import models as md
-import params
+
 import custom_dataset
+import models as md
 from tools import utils
+from trains import params
 
 
 class Trainer:
@@ -53,26 +54,20 @@ class Trainer:
         # steps
         start_steps = epoch * len(dataloader)
         total_steps = params.initial_epochs * len(dataloader)
-        # 损失
-        output_loss = 0
-        for batch_idx, data in enumerate(dataloader):
 
+        for batch_idx, data in enumerate(dataloader):
             # 用于调整学习率
             p = float(batch_idx + start_steps) / total_steps
             constant = 2. / (1. + np.exp(-params.gamma * p)) - 1
             # 优化器
             self.optimizer = utils.optimizer_scheduler(self.optimizer, p)
             self.optimizer.zero_grad()
-            inputs, positions, position_labels, domain_labels = data
-            # 输入
-            inputs = Variable(inputs).to(self.device, non_blocking=True)
-
-            if mv == 0:
-                # 提取特征
-                feature = self.fe(inputs).data
-            else:
-                feature = self.fe(inputs)
             if mv == -1:
+                inputs, positions, position_labels, domain_labels = data
+                # 输入
+                inputs = Variable(inputs).to(self.device, non_blocking=True)
+                # 提取特征
+                feature = self.fe(inputs)
                 # 位置预测
                 position_preds1 = self.lp[0](feature)
                 position_preds2 = self.lp[1](feature)
@@ -97,7 +92,27 @@ class Trainer:
                 loss = position_loss + params.theta * domain_loss
                 # 反向传播
                 loss.backward()
+                # print loss
+                if (batch_idx + 1) % 10 == 0:
+                    logger.info(
+                        'epoch:{}[{}/{} ({:.0f}%)]\tloss: {:.6f}\tc-loss: {:.6f}\td-loss: {:.6f}'.format(
+                            epoch,
+                            batch_idx * len(inputs),
+                            len(dataloader.dataset),
+                            100. * batch_idx / len(dataloader),
+                            loss.item(),
+                            position_loss.item(),
+                            domain_loss.item()
+                        ))
             else:
+                inputs, position_labels = data
+                # 输入
+                inputs = Variable(inputs).to(self.device, non_blocking=True)
+                if mv == 0:
+                    # 提取特征
+                    feature = self.fe(inputs).detach()
+                else:
+                    feature = self.fe(inputs)
                 # 预测标签
                 position_preds = self.lp[mv](feature)
                 # 标签
@@ -106,14 +121,20 @@ class Trainer:
                 loss = self.update_criterion(position_preds, position_labels)
                 # 反向传播
                 loss.backward()
+                # print loss
+                if (batch_idx + 1) % 10 == 0:
+                    logger.info('epoch:{}\t[{}/{} ({:.0f}%)]\tLoss: {:.6f}\t'.format(
+                        epoch,
+                        batch_idx * len(inputs),
+                        len(dataloader.dataset),
+                        100. * batch_idx / len(dataloader),
+                        loss.item(),
+                    ))
             # 更新参数
             self.optimizer.step()
-            # 保存当前损失，用于打印输出
-            output_loss = loss.item()
 
-        logger.info('epoch:{}\tLoss: {:.6f}\t'.format(epoch, output_loss))
         if mv == -1:
-            save_path = params.tri_net_save_path
+            save_path = params.net_save_path
             torch.save(self.fe.state_dict(), save_path + "/fe.pth")
             torch.save(self.dc.state_dict(), save_path + "/dc.pth")
             torch.save(self.lp[0].state_dict(), save_path + "/lp1.pth")
@@ -138,13 +159,16 @@ class Trainer:
         correct1 = 0.0
         correct2 = 0.0
         correct3 = 0.0
+        correct4 = 0.0
 
         # dataloader
         dataloader = utils.get_dataloader(dataset=dataset)
 
         for batch_idx, data in enumerate(dataloader):
+            p = float(batch_idx) / len(dataloader)
+            constant = 2. / (1. + np.exp(-10 * p)) - 1.
+
             inputs, positions, position_labels, domain_labels = data
-            inputs = Variable(inputs).to(self.device, non_blocking=True)
             # 输入
             inputs = Variable(inputs).to(self.device, non_blocking=True)
             # 提取特征
@@ -154,17 +178,15 @@ class Trainer:
             position_pred2 = self.lp[1](feature).data.max(1, keepdim=True)[1]
             position_pred3 = self.lp[2](feature).data.max(1, keepdim=True)[1]
             # 位置标签
-            position_label1 = Variable(position_labels[:, 0]).to(self.device, non_blocking=True)
-            position_label2 = Variable(position_labels[:, 1]).to(self.device, non_blocking=True)
-            position_label3 = Variable(position_labels[:, 2]).to(self.device, non_blocking=True)
+            position_labels = Variable(position_labels).to(self.device, non_blocking=True)
             # 域预测
-            domain_preds = self.dc(feature).data.max(1, keepdim=True)[1]
+            domain_preds = self.dc(feature, constant).data.max(1, keepdim=True)[1]
             # 域标签
             domain_labels = Variable(domain_labels).to(self.device, non_blocking=True)
             # 结果
-            correct1 += position_pred1.eq(label.data.view_as( position_pred1)).cpu().sum()
-            correct2 +=  position_pred2.eq(label.data.view_as( position_pred1)).cpu().sum()
-            correct3 +=  position_pred3.eq(label.data.view_as( position_pred1)).cpu().sum()
+            correct1 += position_pred1.eq(position_labels.data.view_as(position_pred1)).cpu().sum()
+            correct2 += position_pred2.eq(position_labels.data.view_as(position_pred1)).cpu().sum()
+            correct3 += position_pred3.eq(position_labels.data.view_as(position_pred1)).cpu().sum()
 
         logger.debug('\n预测器1的正确率: {}/{} ({:.4f}%)'.format(
             correct1, len(dataloader.dataset), 100. * float(correct1) / len(dataloader.dataset)
@@ -196,14 +218,13 @@ class Trainer:
         mu = unlabeled_dataset
         lv = [[], [], [], []]
         for i in initial_dataset:
-            lv[0].append([i[0], i[1][0]])
-            lv[1].append([i[0], i[1][1]])
-            lv[2].append([i[0], i[1][2]])
+            lv[0].append([i[0], i[2][0]])
+            lv[1].append([i[0], i[2][1]])
+            lv[2].append([i[0], i[2][2]])
         for j in lv[0]:
             lv[3].append([j[0], j[1].argmax()])
         for t in range(1, params.T + 1):
-            # n_t = min(1000 * pow(2, t), params.U)
-            n_t = params.U
+            n_t = min(1000 * pow(2, t), params.U)
             if n_t == params.U:
                 if t % 4 == 0:
                     for epoch in range(params.initial_epochs):
@@ -247,7 +268,7 @@ class Trainer:
         for batch_idx, data in enumerate(dataloader):
             if batch_idx * params.batch_size > nt:
                 break
-            inputs, _ = data
+            inputs, _, _, _ = data
             inputs = Variable(inputs).to(self.device, non_blocking=True)
 
             feature = self.fe(inputs)

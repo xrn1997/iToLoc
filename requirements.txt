@@ -1,0 +1,10 @@
+scipy>=1.6.2
+numpy>=1.20.2
+matplotlib>=3.3.4
+torch>=1.9.0
+pillow>=8.3.1
+scikit_learn>=0.24.2
+torchvision>=0.10.0
+requests>=2.25.1
+pandas>=1.2.5
+logzero>=1.7.0
