@@ -15,6 +15,7 @@ class MNISTDataSet(Dataset):
     """
     自定义的MNIST数据集
     """
+
     def __init__(self, root, transform=None):
         self.data = datasets.MNIST(root=root, train=True, transform=transform,
                                    download=True)
@@ -25,7 +26,7 @@ class MNISTDataSet(Dataset):
             self.labels = np.load(label_save_path, allow_pickle=True)
         else:
             for j in self.data:
-                temp = utils.gen_labels(j[1])
+                temp = utils.gen_labels(j[1], utils.gen_noise())
                 self.labels.append(temp)
             np.save(label_save_path, self.labels)
 
@@ -49,7 +50,7 @@ if __name__ == '__main__':
         transforms.Normalize(mean=params.dataset_mean, std=params.dataset_std)
     ])
     # dataset = torchvision.datasets.MNIST(root='./MNIST', transform=tf)
-    dataset = MNISTDataSet(root='./MNIST', transform=tf)
+    dataset = MNISTDataSet(root="", transform=tf)
     logger.info(dataset[0])
 
     length = len(dataset)
@@ -61,7 +62,7 @@ if __name__ == '__main__':
     dataloader = DataLoader(dataset=first_dataset,
                             batch_size=16,  # 每次处理的batch大小
                             shuffle=True,  # shuffle的作用是乱序，先顺序读取，再乱序索引。
-                            num_workers=1,  # 线程数
+                            num_workers=0,  # 线程数
                             pin_memory=True)
 
     time_start = time.time()

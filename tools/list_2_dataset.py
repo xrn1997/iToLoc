@@ -36,7 +36,7 @@ if __name__ == '__main__':
     dataloader = DataLoader(dataset=dataset1,
                             batch_size=2,  # 每次处理的batch大小
                             shuffle=False,  # shuffle的作用是乱序，先顺序读取，再乱序索引。
-                            num_workers=1,  # 线程数
+                            num_workers=0,  # 线程数
                             pin_memory=True)
     for loader in dataloader:
         data, label = loader

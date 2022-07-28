@@ -49,7 +49,7 @@ def get_dataloader(dataset, batch_size=params.batch_size, shuffle=True, drop_las
     return DataLoader(dataset=dataset,
                       batch_size=batch_size,  # 每次处理的batch大小
                       shuffle=shuffle,  # shuffle的作用是乱序，先顺序读取，再乱序索引。
-                      num_workers=1,  # 线程数
+                      num_workers=0,  # 线程数
                       pin_memory=True,
                       drop_last=drop_last)
 
@@ -74,7 +74,6 @@ def gen_labels(label: int, noise_list: list) -> list:
 
     :param noise_list: 噪声向量列表，如果不为空，则用给定的噪声向量生成one-hot标签
     :param label: 原始标签，int类型
-    :param types: 分类数量
     :return: 添加噪声后的标签列表,该列表中有3个one-hot标签向量（列表）
     """
     temp = []
@@ -112,7 +111,6 @@ def log_save(save_dir, start_time=time.time(), limit=0):
     """
     if time.time() - start_time > limit:
         logzero.logfile(save_dir + "/output_" + str(time.time()) + ".log")
-        start_time = time.time()
 
 
 # 测试用代码

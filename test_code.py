@@ -17,13 +17,10 @@ def test_matrix():
     length = len(rss_item)
     mx = np.matrix(rss_item * length, dtype=np.float32).reshape(length, length).transpose()
     logger.debug(mx)
-    for i in range(0, length):
-        logger.debug(mx[:,i])
-        logger.debug(rss_item[i])
-        mx[:, i] = (mx[:, i] - rss_item[i]) / (rss_item[i] - 1)
+    mx = (mx - rss_item) / (np.array(rss_item) + 1)
     result = mx.A.reshape(1, length, length)  # 通道数为 1
     result = torch.from_numpy(result)
-    logger.debug(result.tolist())
+    logger.debug(result)
 
 
 if __name__ == '__main__':
