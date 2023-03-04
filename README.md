@@ -48,15 +48,10 @@
 
 3.详见代码。
 
-## 五、实验结论
+注意：UJIndoorLoc数据集本身的精度就不高，根据《EdgeLoc: A Robust and Real-Time Localization System Toward Heterogeneous IoT Devices》中给出的表格，定位平均回归精度在8m左右，那么换成分类也就20%的正确率，所以实际上本项目的复现并非失败。
 
-暂无结论，根据复现初步得到结果只能得出两个猜想：
-
-1.千分类不好使；
-
-2.代码复现有若干错误
-
-
+![](F:\Develop\Python\iToLoc\image\result.jpg)
 
 [tri-net]:http://www.lamda.nju.edu.cn/(X(1)S(52gpbgjulpwn3fhrwff1dvvb))/Default.aspx?Page=code_Tri-net&NS=&AspxAutoDetectCookieSupport=1
 [data]:http://archive.ics.uci.edu/ml/datasets/UJIIndoorLoc
+
